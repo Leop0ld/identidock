@@ -1,8 +1,10 @@
 from flask import Flask, Response, request
 import requests
 import hashlib
+import redis
 
 app = Flask(__name__)
+cache = redis.StrictRedis(host='redis', port=6379, db=0)
 salt = 'UNIQUE SALT'
 default_name = 'Jone Doe'
 
@@ -33,8 +35,12 @@ def mainpage():
 @app.route('/monster/<name>')
 def get_identicon(name):
 
-    resp = requests.get(f'http://dnmonster:8080/monster/{name}?size=80')
-    image = resp.content
+    image = cache.get(name)
+    if image is None:
+        print('Cache miss', flush=True)
+        resp = requests.get(f'http://dnmonster:8080/monster/{name}?size=80')
+        image = resp.content
+        cache.set(name, image)
 
     return Response(image, mimetype='image/png')
 
